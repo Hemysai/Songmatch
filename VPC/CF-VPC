@@ -36,11 +36,11 @@
     },
     "Mappings" : {
         "AWSNATAMI" : {
-            "us-east-1": { "AMI": "ami-0c55b159cbfafe01f" }, 
+            "us-east-1": { "AMI": "ami-0c55b159cbfafe01f" }
         },
         "AWSInstanceType2Arch": {
             "t2.micro": { "Arch": "64" }  
-        }
+        },
         "AWSRegionArch2AMI": {
              "us-east-1": {
                     "32": "ami-0b69ea66ff7359e26", 
@@ -48,11 +48,11 @@
                     "64Cluster": "ami-0c55b159cbfafe01f",  
                     "64GPU": "ami-0c55b159cbfafe01f" 
                     }
-        }
+        },
         "SubnetConfig": {
-            "VPC": { "CIDR": "10.0.0.0/24" },  # VPC now has 256 total addresses
-            "Public": { "CIDR": "10.0.0.0/28" },  # Public subnet with 16 addresses
-            "Private": { "CIDR": "10.0.0.16/28" }  # Private subnet with 16 addresses
+            "VPC": { "CIDR": "10.0.0.0/24" }, 
+            "Public": { "CIDR": "10.0.0.0/28" },  
+            "Private": { "CIDR": "10.0.0.16/28" } 
         }
     },
     "Resources" : {
@@ -153,7 +153,7 @@
               ]
             }
         }   
-    }
+    },
     "Outputs" : {
         "VPCId" : {
           "Description" : "VPCId of the newly created VPC",
@@ -166,7 +166,7 @@
         "PrivateSubnet" : {
           "Description" : "SubnetId of the private subnet",
           "Value" :  { "Ref" : "PrivateSubnet" }
-        },
+        }
         
     }
 }
