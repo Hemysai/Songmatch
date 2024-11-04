@@ -1,172 +1,138 @@
-{
-    "AwsTemplateFormatVersion" : "2010-09-09",
-    "Description" : "AWS VPC template",
-    "Parameters" : {
-        "KeyName": {
-            "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the bastion host",
-            "Type": "String",
-            "MinLength": "1",
-            "MaxLength": "255",
-            "AllowedPattern" : "[\\x20-\\x7E]*",
-            "ConstraintDescription" : "can contain only ASCII characters."
-        },
-        "SSHFrom" : {
-            "Description" : "Lockdown SSH access to the bastion host (default can be accessed from anywhere)",
-            "Type" : "String",
-            "MinLength": "9",
-            "MaxLength": "18",
-            "Default" : "0.0.0.0/0",
-            "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
-            "ConstraintDescription" : "must be a valid CIDR range of the form x.x.x.x/x."
-        },
-        "BastionInstanceType" : {
-            "Description" : "Bastion Host EC2 instance type",
-            "Type" : "String",
-            "Default" : "t2.micro",
-            "AllowedValues" :  "t2.micro",
-            "ConstraintDescription" : "must be a valid EC2 instance type."
-        },
-        "NATInstanceType" : {
-            "Description" : "NET Device EC2 instance type",
-            "Type" : "String",
-            "Default" : "m1.small",
-            "AllowedValues" : [ "t1.micro","m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","m3.xlarge","m3.2xlarge","c1.medium","c1.xlarge","cc1.4xlarge","cc2.8xlarge","cg1.4xlarge"],
-            "ConstraintDescription" : "must be a valid EC2 instance type."
-        }
-    },
-    "Mappings" : {
-        "AWSNATAMI" : {
-            "us-east-1": { "AMI": "ami-0c55b159cbfafe01f" }
-        },
-        "AWSInstanceType2Arch": {
-            "t2.micro": { "Arch": "64" }  
-        },
-        "AWSRegionArch2AMI": {
-             "us-east-1": {
-                    "32": "ami-0b69ea66ff7359e26", 
-                    "64": "ami-0c55b159cbfafe01f",  
-                    "64Cluster": "ami-0c55b159cbfafe01f",  
-                    "64GPU": "ami-0c55b159cbfafe01f" 
-                    }
-        },
-        "SubnetConfig": {
-            "VPC": { "CIDR": "10.0.0.0/24" }, 
-            "Public": { "CIDR": "10.0.0.0/28" },  
-            "Private": { "CIDR": "10.0.0.16/28" } 
-        }
-    },
-    "Resources" : {
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AWS VPC template
+Parameters:
+  PublicSubnetCIDR:
+    Description: CIDR block for the public subnet
+    Type: String
+    Default: "10.0.0.0/28"
+    MinLength: "9"
+    MaxLength: "18"
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid CIDR range of the form x.x.x.x/x.
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair.
+  SSHFrom:
+    Description: CIDR range that allows SSH access to the web server
+    Type: String
+    Default: "10.0.0.0/28"
+    MinLength: "9"
+    MaxLength: "18"
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range of the form x.x.x.x/x.
+  InstanceType:
+    Description: EC2 instance type for the web server
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+    ConstraintDescription: Must be a valid EC2 instance type.
+  AMIID:
+    Description: AMI ID to use for launching the EC2 instance
+    Type: String
+    Default: ami-0c55b159cbfafe01f
+    ConstraintDescription: Must be a valid AMI ID.
+  WebServerName:
+    Description: A friendly name for the web server instance
+    Type: String
+    Default: MyWebServer
+    MinLength: "1"
+    MaxLength: "255"
+  Environment:
+    Description: Environment tag (e.g., production, staging)
+    Type: String
+    Default: production
 
-        "VPC" : {
-          "Type" : "AWS::EC2::VPC",
-          "Properties" : {
-            "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
-            "Tags" : [
-              { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
-              { "Key" : "Network", "Value" : "Public" }
-            ]
-          }
-        },
-        "PublicSubnet" : {
-            "Type" : "AWS::EC2::Subnet",
-            "Properties" : {
-              "VpcId" : { "Ref" : "VPC" },
-              "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "Public", "CIDR" ]},
-              "Tags" : [
-                { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
-                { "Key" : "Network", "Value" : "Public" }
-              ]
-            }
-        },
-        "InternetGateway" : {
-            "Type" : "AWS::EC2::InternetGateway",
-            "Properties" : {
-              "Tags" : [
-                { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
-                { "Key" : "Network", "Value" : "Public" }
-              ]
-            }
-        },
-      
-        "GatewayToInternet" : {
-            "Type" : "AWS::EC2::VPCGatewayAttachment",
-            "Properties" : {
-               "VpcId" : { "Ref" : "VPC" },
-               "InternetGatewayId" : { "Ref" : "InternetGateway" }
-             }
-        },
-        "PublicRouteTable" : {
-            "Type" : "AWS::EC2::RouteTable",
-            "Properties" : {
-              "VpcId" : { "Ref" : "VPC" },
-              "Tags" : [
-                { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
-                { "Key" : "Network", "Value" : "Public" }
-              ]
-            }
-        },
-        "PublicRoute" : {
-            "Type" : "AWS::EC2::Route",
-            "DependsOn" : "GatewayToInternet",
-            "Properties" : {
-              "RouteTableId" : { "Ref" : "PublicRouteTable" },
-              "DestinationCidrBlock" : "0.0.0.0/0",
-              "GatewayId" : { "Ref" : "InternetGateway" }
-            }
-        },   
-        "PublicSubnetRouteTableAssociation" : {
-            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
-            "Properties" : {
-              "SubnetId" : { "Ref" : "PublicSubnet" },
-              "RouteTableId" : { "Ref" : "PublicRouteTable" }
-            }
-        
-        },
-        "WebServerSecurityGroup" : {
-            "Type" : "AWS::EC2::SecurityGroup",
-            "Properties" : {
-            "GroupDescription" : "Allow inbound HTTP, HTTPS, and SSH traffic",
-            "VpcId" : { "Ref" : "VPC" },
-            "SecurityGroupIngress" : [
-              {
-                "IpProtocol" : "tcp",
-                "FromPort" : "80",
-                "ToPort" : "80",
-                "CidrIp" : "0.0.0.0/0"
-              },
-              {
-                "IpProtocol" : "tcp",
-                "FromPort" : "443",
-                "ToPort" : "443",
-                "CidrIp" : "0.0.0.0/0"
-              },
-              {
-                "IpProtocol" : "tcp",
-                "FromPort" : "22",
-                "ToPort" : "22",
-                "CidrIp" : { "Ref" : "SSHFrom" }
-              }
-              ],
-              "Tags" : [
-                { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
-                { "Key" : "Network", "Value" : "Public" }
-              ]
-            }
-        }   
-    },
-    "Outputs" : {
-        "VPCId" : {
-          "Description" : "VPCId of the newly created VPC",
-          "Value" :  { "Ref" : "VPC" }
-        },
-        "PublicSubnet" : {
-          "Description" : "SubnetId of the public subnet",
-          "Value" :  { "Ref" : "PublicSubnet" }
-        },
-        "PrivateSubnet" : {
-          "Description" : "SubnetId of the private subnet",
-          "Value" :  { "Ref" : "PrivateSubnet" }
-        }
-        
-    }
-}
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !FindInMap [SubnetConfig, VPC, CIDR]
+      Tags:
+        - Key: Application
+          Value: !Ref "AWS::StackId"
+        - Key: Network
+          Value: Public
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetCIDR
+      Tags:
+        - Key: Application
+          Value: !Ref "AWS::StackId"
+        - Key: Network
+          Value: Public
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Application
+          Value: !Ref "AWS::StackId"
+        - Key: Network
+          Value: Public
+
+  GatewayToInternet:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Application
+          Value: !Ref "AWS::StackId"
+        - Key: Network
+          Value: Public
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayToInternet
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow inbound HTTP, HTTPS, and SSH traffic
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: "80"
+          ToPort: "80"
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: "443"
+          ToPort: "443"
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: !Ref SSHFrom
+      Tags:
+        - Key: Application
+          Value: !Ref "AWS::StackId"
+        - Key: Network
+          Value: Public
+
+Outputs:
+  VPCId:
+    Description: VPCId of the newly created VPC
+    Value: !Ref VPC
+  PublicSubnet:
+    Description: SubnetId of the public subnet
+    Value: !Ref PublicSubnet
